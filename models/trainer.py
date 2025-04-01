@@ -8,8 +8,7 @@ import torch
 import torch.optim as optim
 
 from misc.metric_tool import ConfuseMatrixMeter
-from models.losses import cross_entropy, ce_loss, unc_ce_loss, contrast_loss, edge_loss, compute_smooth_loss, iou_loss, new_edge_loss, dice_loss
-import models.losses as losses
+from models.losses import cross_entropy, edge_loss, compute_smooth_loss, iou_loss
 
 from misc.logger_tool import Logger, Timer
 from models.STRobustNet import *
@@ -151,12 +150,6 @@ class CDTrainer():
         self.scores = None
 
         # define the loss functions
-        if args.loss == 'ce':
-            self._pxl_loss = ce_loss
-        elif args.loss == 'bce':
-            self._pxl_loss = losses.binary_ce
-        else:
-            raise NotImplemented(args.loss)
 
         self.VAL_ACC = np.array([], np.float32)
         if os.path.exists(os.path.join(self.checkpoint_dir, 'val_acc.npy')):
@@ -257,10 +250,10 @@ class CDTrainer():
         imps, est = self._timer_update()
         if np.mod(self.batch_id, 50) == 0:
             if self.args.data_name == 'SYSU':
-                message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, ce_loss: %.5f, dice_loss: %.5f, running_mf1: %.5f\n' %\
+                message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, ce_loss: %.5f, iou_loss: %.5f, running_mf1: %.5f\n' %\
                         (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
                         imps*self.batch_size, est,
-                        self.G_loss.item(), self.ce_loss.item(), self.dice_loss.item(), running_acc)
+                        self.G_loss.item(), self.ce_loss.item(), self.iou_loss.item(), running_acc)
                 self.logger.write(message)
             elif self.args.net_G == 'STR3':
                 message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, smooth_loss: %.5f, iou_loss: %.5f, unc_loss: %.5f, running_mf1: %.5f\n' %\
@@ -269,16 +262,16 @@ class CDTrainer():
                         self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), self.unc_loss.item(), running_acc)
                 self.logger.write(message)
             else:
-                message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, smooth_loss: %.5f, iou_loss: %.5f, running_mf1: %.5f\n' %\
-                        (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
-                        imps*self.batch_size, est,
-                        self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
-                self.logger.write(message)
-                # message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, iou_loss:%.5f, running_mf1: %.5f\n' %\
+                # message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, smooth_loss: %.5f, iou_loss: %.5f, running_mf1: %.5f\n' %\
                 #         (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
                 #         imps*self.batch_size, est,
-                #         self.G_loss.item(), self.edge_loss.item(), self.iou_loss.item(), running_acc)
+                #         self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
                 # self.logger.write(message)
+                message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, ce_loss: %.5f, smooth_loss: %.5f, iou_loss:%.5f, running_mf1: %.5f\n' %\
+                        (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
+                        imps*self.batch_size, est,
+                        self.G_loss.item(), self.ce_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
+                self.logger.write(message)
 
 
 
@@ -338,38 +331,21 @@ class CDTrainer():
 
     def _backward_G(self):
         gt = self.batch['L'].to(self.device).long().squeeze(1)
-        if isinstance(self.G_pred, list):
-            weight = [0.5, 0.7, 1.0]
-            self.edge_loss = 0
-            self.smooth_loss = 0
-            self.iou_loss = 0
-            for i in range(len(self.G_pred)):
-                self.edge_loss += weight[i] * edge_loss(self.G_pred[i], gt)
-                self.smooth_loss += weight[i] * compute_smooth_loss(gt, self.G_pred[i][:, 1, :, :])
-                self.iou_loss += weight[i] * iou_loss(self.G_pred[i], gt)
-            self.G_loss = self.edge_loss + self.smooth_loss + 0.5 * self.iou_loss
-            if self.args.net_G == 'STR3':
-                # print(gt.shape)
-                # print(type(self.gt_mask))
-                self.unc_loss = unc_ce_loss(self.uncertainty, self.gt_mask)
-                # print(1)
-                self.G_loss += 5 * self.unc_loss
+        if self.args.data_name == "SYSU":
+            self.ce_loss = cross_entropy(self.G_pred, gt)
+            # self.edge_loss = edge_loss(self.G_pred, gt)
+            # self.dice_loss = dice_loss(self.G_pred, gt)
+            self.iou_loss = iou_loss(self.G_pred, gt)
+            self.smooth_loss = compute_smooth_loss(gt, self.G_pred[:, 1, :, :])
+            self.G_loss = self.ce_loss + self.smooth_loss + 0.7 * self.iou_loss
         else:
-            if self.args.data_name == "SYSU":
-                self.ce_loss = cross_entropy(self.G_pred, gt)
-                # self.edge_loss = edge_loss(self.G_pred, gt)
-                self.dice_loss = dice_loss(self.G_pred, gt)
-                # self.iou_loss = iou_loss(self.G_pred, gt)
-                self.smooth_loss = compute_smooth_loss(gt, self.G_pred[:, 1, :, :])
-                self.G_loss = self.ce_loss + self.smooth_loss + self.dice_loss
-            else:
-                # self.G_loss = edge_loss(self.G_pred, gt)
-                self.edge_loss = edge_loss(self.G_pred, gt)
-                self.smooth_loss = compute_smooth_loss(gt, self.G_pred[:, 1, :, :])
-                self.iou_loss = iou_loss(self.G_pred, gt)
-                self.G_loss = self.edge_loss + self.smooth_loss + 0.5 * self.iou_loss
-                # self.ce_loss = cross_entropy(self.G_pred, gt)
-                # self.G_loss = self.edge_loss + 0.5 * self.iou_loss
+            # self.G_loss = edge_loss(self.G_pred, gt)
+            self.edge_loss = edge_loss(self.G_pred, gt)
+            self.smooth_loss = compute_smooth_loss(gt, self.G_pred[:, 1, :, :])
+            self.iou_loss = iou_loss(self.G_pred, gt)
+            # self.G_loss = self.edge_loss + self.smooth_loss + 0.5 * self.iou_loss
+            # self.ce_loss = cross_entropy(self.G_pred, gt)
+            self.G_loss = self.edge_loss + self.smooth_loss + 0.5 * self.iou_loss
 
         self.G_loss.backward()
 

@@ -25,15 +25,14 @@ def test(args):
     model.eval_models()
 def seed_torch(seed=1029):
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed) # 为了禁止hash随机化，使得实验可复现
+    os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)# if you are using multi-GPU.
-    torch.backends.cudnn.deterministic = True  # 减慢速度
+    torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = False
-    # torch.use_deterministic_algorithms(True)  # 有检查操作，看下文区别
 
 
 if __name__ == '__main__':
@@ -76,7 +75,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--input_channels', type=int, default=3, help='image input channels')
     parser.add_argument('--hidden_dim', type=int, default=256, help='Transformer feature dimension')
-    parser.add_argument('--num_tokens', type=int, default=100, help='number of queries')
+    parser.add_argument('--num_queries', type=int, default=100, help='number of queries')
     parser.add_argument('--nhead', type=int, default=8, help='number of heads')
     parser.add_argument('--drop_out', type=float, default=0, help='dropout in Transformer')
     parser.add_argument('--dim_forward', type=int, default=2048, help='feature dimension in feedforward network')

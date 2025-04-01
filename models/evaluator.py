@@ -9,15 +9,6 @@ from utils import de_norm
 import utils
 import cv2
 import time
-from torchstat import stat
-
-# from fvcore.nn import FlopCountAnalysis, parameter_count_table
-
-# from ptflops import get_model_complexity_info
-# Decide which device we want to run on
-# torch.cuda.current_device()
-
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class CDEvaluator():
 
@@ -165,31 +156,6 @@ class CDEvaluator():
         self.score_map = torch.softmax(self.G_pred, dim=1)[:, 1, :, :]
             # print(self.G_pred.max())
 
-    def visualize_token(self, token_A, token_B, save_pathA, save_pathB):
-        for i in range(token_A.shape[0]):
-            heat = token_A[i].detach().cpu().numpy()
-            # heat = 
-            # print(imgL)
-            heat_min = heat.min()
-            heat_max = heat.max()
-            heat = (heat-heat_min)/ (heat_max - heat_min)
-            # heat = ((heat-u)/np.sqrt(s+1e-5)) + 1
-            heatmap = cv2.applyColorMap(np.uint8(255*heat), cv2.COLORMAP_JET) # 利用色彩空间转换将heatmap凸显
-            # heatmap = np.float32(heatmap) / 255 # 归一化
-            # cam = heatmap + np.float32(np.array(L_im.cpu())) # 将heatmap 叠加到原图
-            # cam = cam / np.max(cam)
-            cv2.imwrite(save_pathA+'_'+str(i)+".png", np.uint8(heatmap)) # 生成图像
-
-            heat = token_B[i].detach().cpu().numpy()
-            heat_min = heat.min()
-            heat_max = heat.max()
-            heat = (heat-heat_min)/ (heat_max - heat_min)
-            # print(imgL)
-            heatmap = cv2.applyColorMap(np.uint8(255*heat), cv2.COLORMAP_JET) # 利用色彩空间转换将heatmap凸显
-            # heatmap = np.float32(heatmap) / 255 # 归一化
-            # cam = heatmap + np.float32(np.array(L_im.cpu())) # 将heatmap 叠加到原图
-            # cam = cam / np.max(cam)
-            cv2.imwrite(save_pathB+'_'+str(i)+".png", np.uint8(heatmap)) # 生成图像
     def eval_models(self,checkpoint_name='best_ckpt.pt'):
 
         self._load_checkpoint(checkpoint_name)
@@ -208,55 +174,11 @@ class CDEvaluator():
         os.makedirs(os.path.join(path, "pred"), exist_ok=True)
         os.makedirs(os.path.join(path, "bi_pred"), exist_ok=True)
         os.makedirs(os.path.join(path, "gt"), exist_ok=True)
-        os.makedirs(os.path.join(path, "score_map"), exist_ok=True)
         os.makedirs(os.path.join(path, "A"), exist_ok=True)
         os.makedirs(os.path.join(path, "B"), exist_ok=True)
-        if self.vis_token:
-            os.makedirs(os.path.join(path, "tokenA"), exist_ok=True)
-            os.makedirs(os.path.join(path, "tokenB"), exist_ok=True)
-            os.makedirs(os.path.join(path, "ori_tokenA"), exist_ok=True)
-            os.makedirs(os.path.join(path, "ori_tokenB"), exist_ok=True)
 
         num_params = sum(param.numel() for param in self.net_G.parameters())
         print("params:", num_params)
-        # print("warm up")
-        # dummy_input = torch.rand(1, 3, 256, 256).to(torch.device('cuda:0'))
-        # with torch.no_grad():
-        #     # time0 = time.time()
-        #     for _ in range(2000):
-        #         _ = self.net_G(dummy_input, dummy_input)
-        #     # time1 = time.time()
-        # print("finish warm up")
-
-        
-        # starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
-        # # # times = torch.zeros(len(self.dataloader)) # 存储每轮iteration的时间
-        
-        # avg_time = []
-        # for i in range(5): # 测试轮数
-        #     total_time = 0.0
-        #     for self.batch_id, batch in enumerate(self.dataloader, 0):
-        #         bs = batch['A'].shape[0]
-        #         A = batch['A'].cpu().detach()
-        #         B = batch['B'].cpu().detach()
-
-        #         with torch.no_grad():
-        #             
-        #             self._forward_pass(batch)
-        #             ender.record()
-        #             torch.cuda.synchronize()
-        #             curr_time = starter.elapsed_time(ender)
-        #             total_time += curr_time
-
-        #     print("total time:", total_time)
-        #     print("avg_time:", total_time / 2048)
-        #     avg_time.append(total_time / 2048)
-        # print("avg all:", sum(avg_time) / len(avg_time))
-        # from fvcore.nn import FlopCountAnalysis, parameter_count_table, flop_count_table
-        # tensor = torch.rand(1, 3, 256, 256).cuda()
-        # flops = FlopCountAnalysis(self.net_G, (tensor, tensor))
-       #  print(flop_count_table(flops))
-        # print(parameter_count_table(self.net_G))
         for self.batch_id, batch in enumerate(self.dataloader, 0):
             bs = batch['A'].shape[0]
             A = batch['A'].cpu().detach()
@@ -276,14 +198,6 @@ class CDEvaluator():
                     score_map = self.score_map[i]
                     output_a = cv2.convertScaleAbs(np.array(A[i]).transpose(1, 2, 0)[:, :, ::-1], alpha=(255.0))
                     output_b = cv2.convertScaleAbs(np.array(B[i]).transpose(1, 2, 0)[:, :, ::-1], alpha=(255.0))
-                    # output_a
-                    if self.vis_token:
-                        save_pathA = os.path.join(path, "tokenA", str(self.global_id))
-                        save_pathB = os.path.join(path, "tokenB", str(self.global_id))
-                        save_path_oriA = os.path.join(path, "ori_tokenA", str(self.global_id))
-                        save_path_oriB = os.path.join(path, "ori_tokenB", str(self.global_id))
-                        self.visualize_token(self.token_A[i], self.token_B[i], save_pathA, save_pathB)
-                        # self.visualize_token(self.ori_token_A[i], self.ori_token_B[i], save_path_oriA, save_path_oriB)
 
 
                     output_mask = np.zeros([mask.shape[0], mask.shape[1], 3])
@@ -300,7 +214,6 @@ class CDEvaluator():
 
                     cv2.imwrite(os.path.join(path, "A", str(self.global_id)+".png"), output_a)
                     cv2.imwrite(os.path.join(path, "B", str(self.global_id)+".png"), output_b)
-                    cv2.imwrite(os.path.join(path, "score_map", str(self.global_id)+".png"), score_map)
                     cv2.imwrite(os.path.join(path, "pred", str(self.global_id)+".png"), output_mask)
                     cv2.imwrite(os.path.join(path, "bi_pred", str(self.global_id)+".png"), mask)
                     cv2.imwrite(os.path.join(path, "gt", str(self.global_id)+".png"), label)

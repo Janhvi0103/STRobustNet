@@ -75,6 +75,7 @@ class ImageDataset(data.Dataset):
                 with_random_blur=True, 
                 random_color_tf=True,
                 random_exchange=True,
+                random_noise=True,
                 mean=[[0.39659587, 0.5284581, 0.46539196],[0.40202436, 0.48766798, 0.39895433]],
                 std=[[0.24339697, 0.18435532, 0.18066344],[0.2183605, 0.1811296, 0.17902994]]
             )

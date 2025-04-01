@@ -33,6 +33,7 @@ class CDDataAugmentation:
             with_random_blur=False,
             random_color_tf=False,
             random_exchange=False,
+            random_noise=False,
             mean=[[0.5, 0.5, 0.5], [0.5,0.5,0.5]],
             std=[[0.5,0.5,0.5],[0.5,0.5,0.5]]
     ):
@@ -49,6 +50,7 @@ class CDDataAugmentation:
         self.with_random_blur = with_random_blur
         self.random_color_tf = random_color_tf
         self.random_exchange = random_exchange
+        self.random_noise = random_noise
         self.mean = mean
         self.std = std
         print("mean:", self.mean)
@@ -135,13 +137,14 @@ class CDDataAugmentation:
             # img_noise = []
             # print(len(imgs))
             # for img in imgs:
-            img = np.array(imgs[1])
-            # # print(img.shape)
-            noise = np.random.randn(img.shape[0], img.shape[1], 3) / 20
-        
-            img = np.clip(img / 255 + noise, 0, 1) * 255
-            img = Image.fromarray(np.uint8(img))
-            imgs[1] = img# .append(img)
+            if self.random_noise:
+                img = np.array(imgs[1])
+                # # print(img.shape)
+                noise = np.random.randn(img.shape[0], img.shape[1], 3) / 20
+            
+                img = np.clip(img / 255 + noise, 0, 1) * 255
+                img = Image.fromarray(np.uint8(img))
+                imgs[1] = img# .append(img)
             # imgs = img_noise
 
 

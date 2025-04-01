@@ -10,7 +10,7 @@ class DataConfig:
         elif data_name =="WHU":
             self.root_dir = '/temp8/contest/hrx/data/crop'
         elif data_name == "SYSU":
-            self.root_dir = '/temp8/contest/smalltyh/data/SYSU-CD'
+            self.root_dir = '/public/share/test/remote sensing/SYSU-CD'
         elif data_name == 'quick_start':
             self.root_dir = './samples/'
         else:
