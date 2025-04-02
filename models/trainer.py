@@ -255,22 +255,12 @@ class CDTrainer():
                         imps*self.batch_size, est,
                         self.G_loss.item(), self.ce_loss.item(), self.iou_loss.item(), running_acc)
                 self.logger.write(message)
-            elif self.args.net_G == 'STR3':
-                message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, smooth_loss: %.5f, iou_loss: %.5f, unc_loss: %.5f, running_mf1: %.5f\n' %\
-                        (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
-                        imps*self.batch_size, est,
-                        self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), self.unc_loss.item(), running_acc)
-                self.logger.write(message)
             else:
-                # message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, edge_loss: %.5f, smooth_loss: %.5f, iou_loss: %.5f, running_mf1: %.5f\n' %\
-                #         (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
-                #         imps*self.batch_size, est,
-                #         self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
-                # self.logger.write(message)
+
                 message = 'Is_training: %s. [%d,%d][%d,%d], imps: %.2f, est: %.2fh, G_loss: %.5f, ce_loss: %.5f, smooth_loss: %.5f, iou_loss:%.5f, running_mf1: %.5f\n' %\
                         (self.is_training, self.epoch_id, self.max_num_epochs-1, self.batch_id, m,
                         imps*self.batch_size, est,
-                        self.G_loss.item(), self.ce_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
+                        self.G_loss.item(), self.edge_loss.item(), self.smooth_loss.item(), self.iou_loss.item(), running_acc)
                 self.logger.write(message)
 
 
@@ -321,13 +311,7 @@ class CDTrainer():
         self.batch = batch
         img_in1 = batch['A'].to(self.device)
         img_in2 = batch['B'].to(self.device)
-        if self.args.net_G == 'STR3':
-            gt = batch['L'].to(self.device)
-            self.G_pred, self.uncertainty, self.gt_mask = self.net_G(img_in1, img_in2, gt)
-        else:
-            self.G_pred = self.net_G(img_in1, img_in2)
-       
-
+        self.G_pred = self.net_G(img_in1, img_in2)
 
     def _backward_G(self):
         gt = self.batch['L'].to(self.device).long().squeeze(1)
