@@ -6,7 +6,7 @@ class DataConfig:
     def get_data_config(self, data_name):
         self.data_name = data_name
         if data_name == 'LEVIR':
-            self.root_dir = '/temp8/contest/hrx/data/cropLEVIR-CD'
+            self.root_dir = '/content/drive/MyDrive/LEVIR _Small'
         elif data_name =="WHU":
             self.root_dir = '/temp8/contest/hrx/data/crop'
         elif data_name == "SYSU":
